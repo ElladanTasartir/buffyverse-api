@@ -1,0 +1,22 @@
+root = "./"
+
+[build]
+  bin = "./buffyverse-api"
+  cmd = "go build -o ./buffyverse-api ./cmd/buffyverse-api/main.go"
+  delay = 1000
+  exclude_dir = ["assets", "tmp"]
+  exclude_regex = ["_test.go"]
+  kill_delay = "0s"
+  log = "build-errors.log"
+  send_interrupt = false
+  stop_on_error = true
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  time = false
