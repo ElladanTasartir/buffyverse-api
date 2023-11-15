@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port        int    `mapstructure:"port"`
 	Environment string `mapstructure:"environment"`
+	ScraperURL  string `mapstructure:"scraper_url"`
 }
 
 func NewConfig(path string) (*Config, error) {

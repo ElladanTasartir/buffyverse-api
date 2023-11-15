@@ -13,7 +13,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server, err := http.NewServer(config.Port)
+	server, err := http.NewServer(config)
 	if err != nil {
 		log.Fatal(err)
 	}
