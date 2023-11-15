@@ -5,3 +5,7 @@ build:
 .PHONY: run
 run:
 	@air -c ./build/.air.toml
+
+.PHONY: up
+up:
+	@docker-compose up -d

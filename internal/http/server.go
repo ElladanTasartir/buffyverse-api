@@ -4,20 +4,30 @@ import (
 	"fmt"
 
 	"github.com/ElladanTasartir/buffyverse-api/internal/config"
+	"github.com/ElladanTasartir/buffyverse-api/internal/storage"
 	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
-	httpServer *gin.Engine
-	config     *config.Config
+	httpServer     *gin.Engine
+	config         *config.Config
+	storage        *storage.Storage
+	charactersRepo storage.CharactersStorage
 }
 
-func NewServer(config *config.Config) (*Server, error) {
+func NewServer(config *config.Config, db *storage.Storage) (*Server, error) {
 	engine := gin.New()
 
+	charactersRepo, err := storage.NewCharactersRepository(db)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Server{
-		httpServer: engine,
-		config:     config,
+		httpServer:     engine,
+		config:         config,
+		storage:        db,
+		charactersRepo: charactersRepo,
 	}, nil
 }
 
@@ -34,7 +44,7 @@ func (s *Server) Start() error {
 
 func (s *Server) loadRoutes() {
 	s.httpServer.GET("/", s.healthCheck)
-	s.httpServer.POST("/scrape/character", s.scrapeCharacters)
+	s.httpServer.POST("/scrape/characters", s.scrapeCharacters)
 }
 
 func (s *Server) healthCheck(ctx *gin.Context) {

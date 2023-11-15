@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -9,8 +10,8 @@ import (
 )
 
 type Scraper interface {
-	ScrapeCharacter(address string) (*entity.Character, error)
-	ScrapeCharacters() ([]entity.Character, error)
+	ScrapeCharacter(address string) (entity.Character, error)
+	ScrapeCharacters(ctx context.Context) ([]entity.Character, error)
 }
 
 type BuffyScraper struct {
@@ -29,7 +30,7 @@ func NewBuffyScraper(address string) (Scraper, error) {
 	}, nil
 }
 
-func (b *BuffyScraper) ScrapeCharacter(address string) (*entity.Character, error) {
+func (b *BuffyScraper) ScrapeCharacter(address string) (entity.Character, error) {
 	var character entity.Character
 
 	b.collector.OnHTML("aside[role=region]", func(e *colly.HTMLElement) {
@@ -45,13 +46,13 @@ func (b *BuffyScraper) ScrapeCharacter(address string) (*entity.Character, error
 
 	err := b.collector.Visit(address)
 	if err != nil {
-		return &character, fmt.Errorf("failed to scrape character. err = %v", err)
+		return character, fmt.Errorf("failed to scrape character. err = %v", err)
 	}
 
-	return &character, nil
+	return character, nil
 }
 
-func (b *BuffyScraper) ScrapeCharacters() ([]entity.Character, error) {
+func (b *BuffyScraper) ScrapeCharacters(ctx context.Context) ([]entity.Character, error) {
 	searchPages := map[string]string{
 		"Scoobies": "/wiki/Scooby_Gang",
 		"Angel":    "/wiki/Angel_Investigations",
@@ -62,18 +63,18 @@ func (b *BuffyScraper) ScrapeCharacters() ([]entity.Character, error) {
 	pageMethods := map[string]func(address string) ([]entity.Character, error){
 		"Scoobies": b.scrapeScoobyMembers,
 		"Angel":    b.scrapeAngelMembers,
+		"Vamps":    b.scrapeVamps,
+		"Slayers":  b.scrapeSlayers,
 	}
 
 	var characters []entity.Character
 
 	for key, page := range searchPages {
-		endpoint := b.buildAddress(page)
-
 		if _, ok := pageMethods[key]; !ok {
 			continue
 		}
 
-		scrapedCharacters, err := pageMethods[key](endpoint)
+		scrapedCharacters, err := pageMethods[key](page)
 		if err != nil {
 			return scrapedCharacters, fmt.Errorf("failed to scrape characters. key = %s/ err = %v", key, err)
 		}
@@ -115,7 +116,7 @@ func (b *BuffyScraper) scrapeScoobyMembers(address string) ([]entity.Character, 
 				continue
 			}
 
-			characters = append(characters, *character)
+			characters = append(characters, character)
 		}
 	})
 
@@ -123,7 +124,7 @@ func (b *BuffyScraper) scrapeScoobyMembers(address string) ([]entity.Character, 
 		log.Printf("scraping scoobies...")
 	})
 
-	err := b.collector.Visit(address)
+	err := b.collector.Visit(b.buildAddress(address))
 	if err != nil {
 		return characters, fmt.Errorf("failed to scrape scoobies. err = %v", err)
 	}
@@ -153,7 +154,7 @@ func (b *BuffyScraper) scrapeAngelMembers(address string) ([]entity.Character, e
 				continue
 			}
 
-			characters = append(characters, *character)
+			characters = append(characters, character)
 		}
 	})
 
@@ -161,9 +162,85 @@ func (b *BuffyScraper) scrapeAngelMembers(address string) ([]entity.Character, e
 		log.Printf("scraping angel investigations...")
 	})
 
-	err := b.collector.Visit(address)
+	err := b.collector.Visit(b.buildAddress(address))
 	if err != nil {
 		return characters, fmt.Errorf("faild to scrape angel investigations. err = %v", err)
+	}
+
+	return characters, nil
+}
+
+func (b *BuffyScraper) scrapeVamps(address string) ([]entity.Character, error) {
+	var characters []entity.Character
+
+	const nextPage = "?from=Singing+vampire"
+
+	b.collector.OnHTML(".category-page__member-link", func(e *colly.HTMLElement) {
+		href := e.Attr("href")
+
+		character, err := b.ScrapeCharacter(b.buildAddress(href))
+		if err != nil {
+			log.Printf("Failed to scrape character: %s. err = %v", href, err)
+			return
+		}
+
+		if character.Name == "" {
+			return
+		}
+
+		characters = append(characters, character)
+	})
+
+	b.collector.OnRequest(func(f *colly.Request) {
+		log.Printf("scraping vamps...")
+	})
+
+	err := b.collector.Visit(b.buildAddress(address))
+	if err != nil {
+		return characters, fmt.Errorf("faild to scrape vamps. err = %v", err)
+	}
+
+	err = b.collector.Visit(b.buildAddress(fmt.Sprintf("%s%s", address, nextPage)))
+	if err != nil {
+		return characters, fmt.Errorf("faild to scrape vamps. err = %v", err)
+	}
+
+	return characters, nil
+}
+
+func (b *BuffyScraper) scrapeSlayers(address string) ([]entity.Character, error) {
+	var characters []entity.Character
+
+	const nextPage = "?from=Unidentified+Slayer+%281590s%29"
+
+	b.collector.OnHTML(".category-page__member-link", func(e *colly.HTMLElement) {
+		href := e.Attr("href")
+
+		character, err := b.ScrapeCharacter(b.buildAddress(href))
+		if err != nil {
+			log.Printf("Failed to scrape character: %s. err = %v", href, err)
+			return
+		}
+
+		if character.Name == "" {
+			return
+		}
+
+		characters = append(characters, character)
+	})
+
+	b.collector.OnRequest(func(f *colly.Request) {
+		log.Printf("scraping slayers...")
+	})
+
+	err := b.collector.Visit(b.buildAddress(address))
+	if err != nil {
+		return characters, fmt.Errorf("faild to scrape slayers. err = %v", err)
+	}
+
+	err = b.collector.Visit(b.buildAddress(fmt.Sprintf("%s%s", address, nextPage)))
+	if err != nil {
+		return characters, fmt.Errorf("faild to scrape slayers. err = %v", err)
 	}
 
 	return characters, nil

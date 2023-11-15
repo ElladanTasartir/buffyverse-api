@@ -7,9 +7,15 @@ import (
 )
 
 type Config struct {
-	Port        int    `mapstructure:"port"`
-	Environment string `mapstructure:"environment"`
-	ScraperURL  string `mapstructure:"scraper_url"`
+	Port        int      `mapstructure:"port"`
+	Environment string   `mapstructure:"environment"`
+	ScraperURL  string   `mapstructure:"scraper_url"`
+	DB          DBConfig `mapstructure:"mongodb"`
+}
+
+type DBConfig struct {
+	URI      string `mapstructure:"uri"`
+	Database string `mapstructure:"database"`
 }
 
 func NewConfig(path string) (*Config, error) {

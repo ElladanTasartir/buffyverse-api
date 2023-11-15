@@ -2,3 +2,6 @@ port: 8080
 environment: "dev"
 scraper_url: "https://buffy.fandom.com"
 scraper_key: 
+mongodb:
+  uri: mongodb://buffyverse-user:buffyverse-pass@localhost:27017
+  database: buffyverse
