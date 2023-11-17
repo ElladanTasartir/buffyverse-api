@@ -22,6 +22,7 @@ type BuffyScraper struct {
 func NewBuffyScraper(address string) (Scraper, error) {
 	collector := colly.NewCollector(
 		colly.AllowURLRevisit(),
+		colly.CacheDir("./tmp"),
 	)
 
 	return &BuffyScraper{

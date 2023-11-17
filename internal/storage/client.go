@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/ElladanTasartir/buffyverse-api/internal/config"
@@ -19,7 +20,11 @@ func NewStorage(ctx context.Context, config config.DBConfig) (*Storage, error) {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.URI))
 	if err != nil {
-		return storage, err
+		return storage, fmt.Errorf("failed to connect to database. err = %v", err)
+	}
+
+	if err := client.Ping(ctx, nil); err != nil {
+		return storage, fmt.Errorf("failed to ping database. err = %v", err)
 	}
 
 	storage.client = client

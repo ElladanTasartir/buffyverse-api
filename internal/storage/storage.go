@@ -8,5 +8,6 @@ import (
 
 type CharactersStorage interface {
 	CreateCharacters(ctx context.Context, characters []entity.Character) error
-	FindCharacterByName(ctx context.Context, character entity.Character) (*entity.Character, error)
+	FindCharacterByName(ctx context.Context, character *entity.Character) error
+	FindCharacters(ctx context.Context) ([]entity.Character, error)
 }

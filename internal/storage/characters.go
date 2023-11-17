@@ -24,18 +24,38 @@ func NewCharactersRepository(storage *Storage) (*CharactersRepository, error) {
 	}, nil
 }
 
+func (r *CharactersRepository) FindCharacters(ctx context.Context) ([]entity.Character, error) {
+	var characters []entity.Character
+
+	cursor, err := r.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return characters, fmt.Errorf("failed to find characters. err = %v", err)
+	}
+
+	for cursor.Next(ctx) {
+		var character entity.Character
+		if err := cursor.Decode(&character); err != nil {
+			return characters, fmt.Errorf("error decoding characters. err = %v", err)
+		}
+
+		characters = append(characters, character)
+	}
+
+	return characters, nil
+}
+
 func (r *CharactersRepository) CreateCharacters(ctx context.Context, characters []entity.Character) error {
 	var errors []error
 
 	for _, character := range characters {
-		foundCharacter, err := r.FindCharacterByName(ctx, character)
+		err := r.FindCharacterByName(ctx, &character)
 		if err != nil {
 			errors = append(errors, err)
 		}
 
-		if foundCharacter != nil {
-			character.ID = foundCharacter.ID
-		} else {
+		fmt.Println(character.Name, character.ID)
+
+		if character.ID == primitive.NilObjectID {
 			character.ID = primitive.NewObjectID()
 		}
 
@@ -62,7 +82,7 @@ func (r *CharactersRepository) CreateCharacters(ctx context.Context, characters 
 	return nil
 }
 
-func (r *CharactersRepository) FindCharacterByName(ctx context.Context, character entity.Character) (*entity.Character, error) {
+func (r *CharactersRepository) FindCharacterByName(ctx context.Context, character *entity.Character) error {
 	filter := bson.M{
 		"name": character.Name,
 	}
@@ -71,11 +91,13 @@ func (r *CharactersRepository) FindCharacterByName(ctx context.Context, characte
 	err := r.collection.FindOne(ctx, filter).Decode(&foundCharacter)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, nil
+			return nil
 		}
 
-		return nil, fmt.Errorf("failed to find character. err = %v", err)
+		return fmt.Errorf("failed to find character. err = %v", err)
 	}
 
-	return &foundCharacter, nil
+	character.ID = foundCharacter.ID
+
+	return nil
 }

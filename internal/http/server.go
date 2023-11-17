@@ -45,6 +45,7 @@ func (s *Server) Start() error {
 func (s *Server) loadRoutes() {
 	s.httpServer.GET("/", s.healthCheck)
 	s.httpServer.POST("/scrape/characters", s.scrapeCharacters)
+	s.httpServer.GET("/characters", s.getCharacters)
 }
 
 func (s *Server) healthCheck(ctx *gin.Context) {
