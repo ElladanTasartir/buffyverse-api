@@ -24,24 +24,27 @@ func NewCharactersRepository(storage *Storage) (*CharactersRepository, error) {
 	}, nil
 }
 
-func (r *CharactersRepository) FindCharacters(ctx context.Context) ([]entity.Character, error) {
-	var characters []entity.Character
+func (r *CharactersRepository) FindCharacters(ctx context.Context, params PageParams) (*PagedData[entity.Character], error) {
+	orderStage := bson.D{{"$sort", bson.D{{"name", 1}}}}
+	skipStage := bson.D{{"$skip", params.Page * params.PageSize}}
+	limitStage := bson.D{{"$limit", params.PageSize}}
+	countStage := bson.D{{"$count", "count"}}
+	facet := bson.D{{"$facet", bson.D{{"results", bson.A{orderStage, skipStage, limitStage}}, {"count", bson.A{countStage}}}}}
 
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cursor, err := r.collection.Aggregate(ctx, mongo.Pipeline{facet})
 	if err != nil {
-		return characters, fmt.Errorf("failed to find characters. err = %v", err)
+		return nil, fmt.Errorf("failed to find characters. err = %v", err)
 	}
 
+	var character PagedData[entity.Character]
 	for cursor.Next(ctx) {
-		var character entity.Character
 		if err := cursor.Decode(&character); err != nil {
-			return characters, fmt.Errorf("error decoding characters. err = %v", err)
+			fmt.Println(err)
+			return nil, fmt.Errorf("error decoding characters. err = %v", err)
 		}
-
-		characters = append(characters, character)
 	}
 
-	return characters, nil
+	return &character, nil
 }
 
 func (r *CharactersRepository) CreateCharacters(ctx context.Context, characters []entity.Character) error {
