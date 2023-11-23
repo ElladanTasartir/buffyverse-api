@@ -1,8 +1,14 @@
 package http
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/ElladanTasartir/buffyverse-api/internal/config"
@@ -12,7 +18,8 @@ import (
 )
 
 type Server struct {
-	httpServer     *gin.Engine
+	httpServer     *http.Server
+	engine         *gin.Engine
 	config         *config.Config
 	storage        *storage.Storage
 	charactersRepo storage.CharactersStorage
@@ -33,6 +40,10 @@ type PagedRequest struct {
 }
 
 func NewServer(config *config.Config, db *storage.Storage) (*Server, error) {
+	if config.Environment != "dev" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	engine := gin.New()
 
 	charactersRepo, err := storage.NewCharactersRepository(db)
@@ -42,8 +53,16 @@ func NewServer(config *config.Config, db *storage.Storage) (*Server, error) {
 
 	engine.Use(gin.Logger(), gin.Recovery())
 
+	server := &http.Server{
+		Addr:         fmt.Sprintf(":%d", config.Port),
+		Handler:      engine,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
 	return &Server{
-		httpServer:     engine,
+		httpServer:     server,
+		engine:         engine,
 		config:         config,
 		storage:        db,
 		charactersRepo: charactersRepo,
@@ -53,19 +72,34 @@ func NewServer(config *config.Config, db *storage.Storage) (*Server, error) {
 func (s *Server) Start() error {
 	s.loadRoutes()
 
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", s.config.Port),
-		Handler:      s.httpServer,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-
-	err := server.ListenAndServe()
-	if err != nil {
-		return fmt.Errorf("failed to start http server. err = %v", err)
+	if err := s.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("http server err = %v", err)
 	}
 
 	return nil
+}
+
+func (s *Server) GracefulShutdown() error {
+	signals := make(chan os.Signal, 1)
+
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	<-signals
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	if err := s.shutdown(ctx); err != nil {
+		return fmt.Errorf("shutdown error. err = %v", err)
+	}
+
+	log.Println("server has been shutdown gracefully")
+
+	return nil
+}
+
+func (s *Server) shutdown(ctx context.Context) error {
+	return s.httpServer.Shutdown(ctx)
 }
 
 func (s *Server) notFound(ctx *gin.Context) {
@@ -85,17 +119,17 @@ func (s *Server) timeoutResponse(ctx *gin.Context) {
 }
 
 func (s *Server) loadRoutes() {
-	s.httpServer.Use(timeout.New(
+	s.engine.Use(timeout.New(
 		timeout.WithTimeout(5*time.Second),
 		timeout.WithHandler(s.timeout),
 		timeout.WithResponse(s.timeoutResponse),
 	))
 
-	s.httpServer.NoRoute(s.notFound)
+	s.engine.NoRoute(s.notFound)
 
-	s.httpServer.GET("/", s.healthCheck)
-	s.httpServer.POST("/scrape/characters", s.scrapeCharacters)
-	s.httpServer.GET("/characters", s.getCharacters)
+	s.engine.GET("/", s.healthCheck)
+	s.engine.POST("/scrape/characters", s.scrapeCharacters)
+	s.engine.GET("/characters", s.getCharacters)
 }
 
 func (s *Server) healthCheck(ctx *gin.Context) {
