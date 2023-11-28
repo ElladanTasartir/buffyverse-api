@@ -51,22 +51,24 @@ func NewServer(config *config.Config, db *storage.Storage) (*Server, error) {
 		return nil, err
 	}
 
-	engine.Use(gin.Logger(), gin.Recovery())
-
-	server := &http.Server{
+	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.Port),
 		Handler:      engine,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
-	return &Server{
-		httpServer:     server,
+	server := &Server{
+		httpServer:     httpServer,
 		engine:         engine,
 		config:         config,
 		storage:        db,
 		charactersRepo: charactersRepo,
-	}, nil
+	}
+
+	engine.Use(gin.Logger(), gin.CustomRecovery(server.errorWrapper))
+
+	return server, nil
 }
 
 func (s *Server) Start() error {
@@ -96,6 +98,13 @@ func (s *Server) GracefulShutdown() error {
 	log.Println("server has been shutdown gracefully")
 
 	return nil
+}
+
+func (s *Server) errorWrapper(ctx *gin.Context, err any) {
+	log.Printf("panic err in http server. err = %v\n", err)
+	ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+		"message": "Internal Server Error",
+	})
 }
 
 func (s *Server) shutdown(ctx context.Context) error {

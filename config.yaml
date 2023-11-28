@@ -1,5 +1,5 @@
 port: 8080
-environment: "dev"
+environment: "prod"
 scraper_url: "https://buffy.fandom.com"
 scraper_key: 
 mongodb:
