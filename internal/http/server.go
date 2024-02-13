@@ -128,6 +128,8 @@ func (s *Server) timeoutResponse(c *gin.Context) {
 }
 
 func (s *Server) loadRoutes() {
+	s.engine.Use(s.cors)
+
 	s.engine.Use(timeout.New(
 		timeout.WithTimeout(5*time.Second),
 		timeout.WithHandler(s.timeout),
@@ -145,4 +147,18 @@ func (s *Server) healthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "OK",
 	})
+}
+
+func (s *Server) cors(c *gin.Context) {
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+	c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, hx-*")
+	c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
+	if c.Request.Method == "OPTIONS" {
+		c.AbortWithStatus(204)
+		return
+	}
+
+	c.Next()
 }
