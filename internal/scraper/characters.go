@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/ElladanTasartir/buffyverse-api/internal/entity"
 	"github.com/gocolly/colly"
@@ -48,16 +49,40 @@ func (b *BuffyScraper) ScrapeCharacters(ctx context.Context) ([]entity.Character
 
 	var characters []entity.Character
 
+	charactersChan := make(chan []entity.Character, 4)
+	errChan := make(chan error, 4)
+
+	wg := sync.WaitGroup{}
+
 	for key, page := range searchPages {
-		if _, ok := pageMethods[key]; !ok {
-			continue
-		}
+		wg.Add(1)
+		go func(key, page string) {
+			defer wg.Done()
 
-		scrapedCharacters, err := pageMethods[key](page)
-		if err != nil {
-			return scrapedCharacters, fmt.Errorf("failed to scrape characters. key = %s/ err = %v", key, err)
-		}
+			if _, ok := pageMethods[key]; !ok {
+				return
+			}
 
+			scrapedCharacters, err := pageMethods[key](page)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to scrape characters. key = %s/ err = %v", key, err)
+				return
+			}
+
+			charactersChan <- scrapedCharacters
+		}(key, page)
+	}
+
+	wg.Wait()
+
+	close(charactersChan)
+	close(errChan)
+
+	for err := range errChan {
+		return characters, err
+	}
+
+	for scrapedCharacters := range charactersChan {
 		characters = append(characters, scrapedCharacters...)
 	}
 
