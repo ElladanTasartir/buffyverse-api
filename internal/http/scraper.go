@@ -9,14 +9,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (s *Server) scrapeEpisode(ctx *gin.Context) {}
+func (s *Server) scrapeEpisode(c *gin.Context) {}
 
-func (s *Server) scrapeSeason(ctx *gin.Context) {}
+func (s *Server) scrapeSeason(c *gin.Context) {}
 
-func (s *Server) scrapeCharacters(ctx *gin.Context) {
+func (s *Server) scrapeCharacters(c *gin.Context) {
 	scraper, err := scraper.NewBuffyScraper(s.config.ScraperURL)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
@@ -38,7 +38,7 @@ func (s *Server) scrapeCharacters(ctx *gin.Context) {
 		}
 	}()
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"status": "processing started",
 	})
 }

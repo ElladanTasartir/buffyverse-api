@@ -100,29 +100,29 @@ func (s *Server) GracefulShutdown() error {
 	return nil
 }
 
-func (s *Server) errorWrapper(ctx *gin.Context, err any) {
+func (s *Server) errorWrapper(c *gin.Context, err any) {
 	log.Printf("panic err in http server. err = %v\n", err)
-	ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 		"message": "Internal Server Error",
 	})
 }
 
-func (s *Server) shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+func (s *Server) shutdown(c context.Context) error {
+	return s.httpServer.Shutdown(c)
 }
 
-func (s *Server) notFound(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotFound, gin.H{
+func (s *Server) notFound(c *gin.Context) {
+	c.JSON(http.StatusNotFound, gin.H{
 		"error": "resource not found",
 	})
 }
 
-func (s *Server) timeout(ctx *gin.Context) {
-	ctx.Next()
+func (s *Server) timeout(c *gin.Context) {
+	c.Next()
 }
 
-func (s *Server) timeoutResponse(ctx *gin.Context) {
-	ctx.JSON(http.StatusGatewayTimeout, gin.H{
+func (s *Server) timeoutResponse(c *gin.Context) {
+	c.JSON(http.StatusGatewayTimeout, gin.H{
 		"error": "request timed out",
 	})
 }
@@ -141,8 +141,8 @@ func (s *Server) loadRoutes() {
 	s.engine.GET("/characters", s.getCharacters)
 }
 
-func (s *Server) healthCheck(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
+func (s *Server) healthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
 		"status": "OK",
 	})
 }

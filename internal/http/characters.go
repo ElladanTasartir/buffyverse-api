@@ -8,30 +8,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (s *Server) getCharacters(ctx *gin.Context) {
+func (s *Server) getCharacters(c *gin.Context) {
 	var pagedRequest PagedRequest
 
-	if err := ctx.ShouldBindQuery(&pagedRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
+	if err := c.ShouldBindQuery(&pagedRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid page params",
 		})
 		return
 	}
 
-	pagedData, err := s.charactersRepo.FindCharacters(ctx, storage.PageParams{
+	pagedData, err := s.charactersRepo.FindCharacters(c, storage.PageParams{
 		Page:     pagedRequest.Page,
 		PageSize: pagedRequest.PageSize,
 		Search:   pagedRequest.Search,
 		Order:    pagedRequest.Order,
 	})
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err,
 		})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, PagedResponse[entity.Character]{
+	c.JSON(http.StatusOK, PagedResponse[entity.Character]{
 		Result:   pagedData.Results,
 		PageSize: pagedRequest.PageSize,
 		Page:     pagedRequest.Page,
